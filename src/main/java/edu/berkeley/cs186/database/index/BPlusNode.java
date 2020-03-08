@@ -56,7 +56,7 @@ abstract class BPlusNode {
      * n.put(k, r) inserts the pair (k, r) into the subtree rooted by n. There
      * are two cases to consider:
      *
-     *   Case 1: If inserting the pair (k, r) does NOT cause n to overflow, then
+     *   Case 1: If inserting the pair (k, r) does NOT cause ***n*** to overflow, then
      *           Optional.empty() is returned.
      *   Case 2: If inserting the pair (k, r) does cause the node n to overflow,
      *           then n is split into a left and right node (described more
