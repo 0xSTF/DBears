@@ -341,7 +341,7 @@ public class QueryPlan {
         // table and retain the lowest cost operator
         int minCost = seqCost;
         List<Integer> indices = getEligibleIndexColumns(table);
-        Integer index = this.selectColumnNames.size();
+        Integer index = Integer.MAX_VALUE;
         QueryOperator indexOperator;
         for (Integer i : indices) {
             indexOperator = new IndexScanOperator(this.transaction, table,
@@ -358,6 +358,7 @@ public class QueryPlan {
         minOp = addEligibleSelections(minOp, index);
 
         return minOp;
+
     }
 
     /**
