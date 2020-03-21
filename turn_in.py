@@ -6,7 +6,7 @@ import shutil
 import tempfile
 import subprocess
 
-PROJ_LIST = ['proj0', 'proj1', 'proj2', 'proj3_part1', 'proj3_part2', 'proj4_part1', 'proj4_part2', 'proj5']
+PROJ_LIST = ['proj0', 'proj1', 'proj2', 'proj3_part1', 'proj3_part2', 'proj4_part1', 'proj4_part2', 'proj4_part3', 'proj5']
 
 def check_student_id(student_id):
     m = re.match(r'[0-9]{8,10}', student_id)
@@ -16,7 +16,11 @@ def check_student_id(student_id):
     return student_id
 
 def test_category(assignment):
-    return assignment[4:].replace('_p', 'P').replace('Part2', '')
+    if assignment == 'proj3_part2':
+            return '3'
+    if assignment == 'proj4_part3':
+            return '4'
+    return assignment[4:].replace('_p', 'P')
 
 def files_to_copy(assignment):
     files = {
@@ -32,21 +36,26 @@ def files_to_copy(assignment):
             'src/main/java/edu/berkeley/cs186/database/query/BNLJOperator.java',
             'src/main/java/edu/berkeley/cs186/database/query/SortOperator.java',
             'src/main/java/edu/berkeley/cs186/database/query/SortMergeOperator.java',
-            'src/main/java/edu/berkeley/cs186/database/query/GraceHashJoin.java'
+            'src/main/java/edu/berkeley/cs186/database/query/GraceHashJoin.java',
         ],
         'proj3_part2': [
             'src/main/java/edu/berkeley/cs186/database/query/BNLJOperator.java',
             'src/main/java/edu/berkeley/cs186/database/query/SortOperator.java',
             'src/main/java/edu/berkeley/cs186/database/query/SortMergeOperator.java',
             'src/main/java/edu/berkeley/cs186/database/query/QueryPlan.java',
-            'src/main/java/edu/berkeley/cs186/database/query/GraceHashJoin.java'
+            'src/main/java/edu/berkeley/cs186/database/query/GraceHashJoin.java',
         ],
         'proj4_part1': [
             'src/main/java/edu/berkeley/cs186/database/concurrency/LockType.java',
             'src/main/java/edu/berkeley/cs186/database/concurrency/LockManager.java',
-            'src/main/java/edu/berkeley/cs186/database/concurrency/LockContext.java',
         ],
         'proj4_part2': [
+            'src/main/java/edu/berkeley/cs186/database/concurrency/LockType.java',
+            'src/main/java/edu/berkeley/cs186/database/concurrency/LockManager.java',
+            'src/main/java/edu/berkeley/cs186/database/concurrency/LockContext.java',
+            'src/main/java/edu/berkeley/cs186/database/concurrency/LockUtil.java',
+        ],
+        'proj4_part3': [
             'src/main/java/edu/berkeley/cs186/database/concurrency/LockType.java',
             'src/main/java/edu/berkeley/cs186/database/concurrency/LockManager.java',
             'src/main/java/edu/berkeley/cs186/database/concurrency/LockContext.java',
