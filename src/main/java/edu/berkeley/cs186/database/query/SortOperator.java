@@ -42,12 +42,14 @@ public class SortOperator {
     public interface Run extends Iterable<Record> {
         /**
          * Add a record to the run.
+         *
          * @param values set of values of the record to add to run
          */
         void addRecord(List<DataBox> values);
 
         /**
          * Add a list of records to the run.
+         *
          * @param records records to add to the run
          */
         void addRecords(List<Record> records);
@@ -57,6 +59,7 @@ public class SortOperator {
 
         /**
          * Table name of table backing the run.
+         *
          * @return table name
          */
         String tableName();
@@ -72,8 +75,15 @@ public class SortOperator {
      */
     public Run sortRun(Run run) {
         // TODO(proj3_part1): implement
-
-        return null;
+        Iterator<Record> iter = run.iterator();
+        List<Record> l = new ArrayList<>();
+        while (iter.hasNext()) {
+            l.add(iter.next());
+        }
+        l.sort(this.comparator);
+        Run result = createRun();
+        result.addRecords(l);
+        return result;
     }
 
     /**
@@ -87,7 +97,50 @@ public class SortOperator {
     public Run mergeSortedRuns(List<Run> runs) {
         // TODO(proj3_part1): implement
 
-        return null;
+        /**
+         * check whether list is too big
+         * call iterator on all the the runs (by constructing list of iterators)
+         * construct minPQ on all the min records of each run
+         */
+
+        if (runs.size() > this.numBuffers - 1) {
+            throw new IllegalArgumentException();
+        }
+
+        List<Pair<Iterator<Record>, Integer>> l = new ArrayList<>();
+        for (Integer i = 0; i < runs.size(); i++) {
+            l.add(new Pair(runs.get(i).iterator(), i));
+        }
+
+        PriorityQueue<Pair<Record, Integer>> minPQ = new PriorityQueue(new RecordPairComparator());
+        for (Pair<Iterator<Record>, Integer> it : l) {
+            minPQ.add(new Pair(it.getFirst().next(), it.getSecond()));
+        }
+
+        Run result = createRun();
+
+        Record removed_record;
+        Integer i;
+        Pair<Record, Integer> back_on_queue;
+
+        // int times_removed = 0;    //for testing
+        while (!minPQ.isEmpty()) {
+            Pair<Record, Integer> curr_min = minPQ.remove();
+
+            removed_record = curr_min.getFirst();
+            // times_removed ++;     //for testing
+            i = curr_min.getSecond();
+            result.addRecord(removed_record.getValues());
+            // if (run i) has a next record, then get a new from it
+            // else, the minPQ stops fetching from (run i) and minPQ has one less element
+            // until minPQ.isEmpty() is tru, breaking out of the while loop
+            if (l.get(i).getFirst().hasNext()) {
+                back_on_queue = new Pair(l.get(i).getFirst().next(), i);
+                minPQ.add(back_on_queue);
+            }
+        }
+        //System.out.println(times_removed); //for testing
+        return result;
     }
 
     /**
@@ -99,8 +152,30 @@ public class SortOperator {
      */
     public List<Run> mergePass(List<Run> runs) {
         // TODO(proj3_part1): implement
+        int num_runs = runs.size() / (numBuffers - 1) + 1;
+        int num_last_runs = runs.size() % (numBuffers - 1);
 
-        return Collections.emptyList();
+        List<List<Run>> inputs = new ArrayList<>();
+        for (int i = 0; i < num_runs - 1; i++) {
+            inputs.add(runs.subList(i * (numBuffers - 1), (i + 1) * (numBuffers - 1)));
+        }
+        if (num_last_runs != 0) {
+            inputs.add(runs.subList((num_runs - 1) * (numBuffers - 1), runs.size()));
+        }
+
+        //int total_runs = 0;
+        //for (int j = 0; j < inputs.size(); j++) {
+        //    System.out.printf("inputs sublist sizes = %d \n", inputs.get(j).size());
+        //    total_runs += inputs.get(j).size();
+        //}
+        //System.out.printf("total runs processed = %d \n", total_runs);
+        //System.out.printf("num runs in runs = %d \n", runs.size());
+
+        List<Run> results = new ArrayList<>();
+        for (List<Run> r : inputs) {
+            results.add(mergeSortedRuns(r));
+        }
+        return results;
     }
 
     /**
@@ -111,7 +186,21 @@ public class SortOperator {
     public String sort() {
         // TODO(proj3_part1): implement
 
-        return this.tableName; // TODO(proj3_part1): replace this!
+        // pass 0 prep
+        ArrayList<Run> sorted_runs = new ArrayList<>();
+        BacktrackingIterator<Page> page_iter = this.transaction.getPageIterator(this.tableName);
+        BacktrackingIterator<Record> pass0_iters;
+
+        while (page_iter.hasNext()) {
+            pass0_iters = this.transaction.getBlockIterator(this.tableName, page_iter, this.numBuffers);
+            sorted_runs.add(this.sortRun(createRunFromIterator(pass0_iters)));
+        }
+
+        //Pass 1 and more
+        while (sorted_runs.size() > 1) {
+            sorted_runs = (ArrayList<Run>) this.mergePass((sorted_runs));
+        }
+        return sorted_runs.get(0).tableName();
     }
 
     public Iterator<Record> iterator() {
@@ -124,6 +213,7 @@ public class SortOperator {
     /**
      * Creates a new run for intermediate steps of sorting. The created
      * run supports adding records.
+     *
      * @return a new, empty run
      */
     Run createRun() {
@@ -134,6 +224,7 @@ public class SortOperator {
      * Creates a run given a backtracking iterator of records. Record adding
      * is not supported, but creating this run will not incur any I/Os aside
      * from any I/Os incurred while reading from the given iterator.
+     *
      * @param records iterator of records
      * @return run backed by the iterator of records
      */
@@ -146,7 +237,7 @@ public class SortOperator {
 
         IntermediateRun() {
             this.tempTableName = SortOperator.this.transaction.createTempTable(
-                                     SortOperator.this.operatorSchema);
+                    SortOperator.this.operatorSchema);
         }
 
         @Override

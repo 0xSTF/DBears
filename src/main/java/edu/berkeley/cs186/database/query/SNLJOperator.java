@@ -31,12 +31,12 @@ public class SNLJOperator extends JoinOperator {
 
     @Override
     public int estimateIOCost() {
-        int numLeftRecords = getLeftSource().getStats().getNumRecords();
+        int numLeftRecords = getLeftSource().getStats().getNumRecords(); // |S|
 
-        int numRightPages = getRightSource().getStats().getNumPages();
-        int numLeftPages = getLeftSource().getStats().getNumPages();
+        int numRightPages = getRightSource().getStats().getNumPages();   // [R]
+        int numLeftPages = getLeftSource().getStats().getNumPages();     // [S]
 
-        return numLeftRecords * numRightPages + numLeftPages;
+        return numLeftRecords * numRightPages + numLeftPages;            // |S|*[R] + [S]
     }
 
     /**

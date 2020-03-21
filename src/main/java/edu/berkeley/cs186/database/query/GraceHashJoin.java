@@ -24,6 +24,7 @@ public class GraceHashJoin {
     // For the break methods actually materializing the records
     // may consume a lot of system resources
     private boolean materializeJoin;
+    // TODO: what's this for?
 
     /**
      * Main constructor
@@ -56,6 +57,10 @@ public class GraceHashJoin {
      */
     private void partition(HashPartition[] partitions, Iterator<Record> records, boolean left,
                            int pass) {
+        /*
+        Iterator<Record> records is leftRelationIterator if boolean left == true, RightRelationIterator o/w
+         */
+
         assert pass >= 1;
         Function<DataBox, Integer> hashFunc = HashFunc.getHashFunction(pass); // Use this to hash!
         int columnIndex = left ? getLeftColumnIndex() : getRightColumnIndex();
@@ -65,7 +70,23 @@ public class GraceHashJoin {
         // starting point. Make sure to use the hash function we provide to you
         // by calling hashFunc.apply(databox) to get an integer valued hash code
         // from a DataBox object.
+        while (records.hasNext()) {
+            // Partition left records on the chosen column
+            Record record = records.next();
+            DataBox columnValue = record.getValues().get(columnIndex);
+            int hash = hashFunc.apply(columnValue);
 
+            int partitionNum = (hash % partitions.length);
+            if (partitionNum < 0) {
+                partitionNum += partitions.length;    // Hash might be negative
+            }
+
+            if (left) {
+                partitions[partitionNum].addLeftRecord(record);
+            } else {
+                partitions[partitionNum].addRightRecord(record);
+            }
+        }
         return;
     }
 
@@ -103,6 +124,11 @@ public class GraceHashJoin {
                 "fit in B-2 pages of memory."
             );
         }
+        // from reading code above
+        // we always use the smaller right of left side of the partition as build and bigger as probe
+        // which mean in run(), where recursive hashing is implemented,
+        // termination policy should be that either left or right iterator smaller than (B - 2)pgs
+
         if (!materializeJoin) {
             // For the student input tests we don't want to materialize the
             // joined records as it may consume excessive resources
@@ -117,6 +143,36 @@ public class GraceHashJoin {
         // You shouldn't refer to any variable starting with "left" or "right" here
         // Use the "build" and "probe" variables we set up for you
         // Check out how NaiveHashJoin implements this function if you feel stuck.
+        /**
+         * general layout of the code below:
+         * 1. init five variables above
+         * 2. build hashtable of all records in buildRecords
+         * 3. stream probe records and construct the list
+         */
+        Map<DataBox, List<Record>> hashTable = new HashMap<>();
+        // Building stage
+        while (buildRecords.hasNext()) {
+            Record buildRecord = buildRecords.next();
+            DataBox buildJoinValue = buildRecord.getValues().get(buildColumnIndex);
+
+            if (!hashTable.containsKey(buildJoinValue)) {
+                hashTable.put(buildJoinValue, new ArrayList<>());
+            }
+            hashTable.get(buildJoinValue).add(buildRecord);
+        }
+
+        // Probing stage
+        while (probeRecords.hasNext()) {
+            Record probeRecord = probeRecords.next();
+            DataBox probeJoinValue = probeRecord.getValues().get(probeColumnIndex);
+
+            if (hashTable.containsKey(probeJoinValue)) {
+                for (Record BRecord : hashTable.get(probeJoinValue)) {
+                    Record joinedRecord = joinRecords(BRecord, probeRecord);
+                    joinedRecords.add(joinedRecord);
+                }
+            }
+        }
 
         // Return the records
         return joinedRecords;
@@ -160,6 +216,12 @@ public class GraceHashJoin {
             //
             // You may find the ArrayList.addAll method useful here.
             // It may be helpful to read through the HashPartition.java class for methods that will be useful here
+            if (partition.getNumLeftPages() > numBuffers - 2 && partition.getNumRightPages() > numBuffers - 2) {
+                //recursively partition
+                joinedRecords.addAll(run(partition.getLeftIterator(), partition.getRightIterator(), pass + 1));
+            } else {
+                joinedRecords.addAll(buildAndProbe(partition));
+            }
         }
         return joinedRecords;
     }
@@ -181,8 +243,11 @@ public class GraceHashJoin {
         // TODO(proj3_part1): create an array of partitions
         // You may find the provided helper function
         // createPartition() useful here.
-
-        return null;
+        HashPartition partitions[] = new HashPartition[numBuffers - 1];
+        for (int i = 0; i < numBuffers - 1; i ++) {
+            partitions[i] = createPartition();
+        }
+        return partitions;
     }
 
     /**
@@ -200,6 +265,7 @@ public class GraceHashJoin {
      * If you get a Java heap space error, that means your numRecords value is too big.
      *
      */
+    // TODO: change the values... 👆
 
     // Feel free to add your own helper methods here if you wish to do so
 
@@ -294,6 +360,11 @@ public class GraceHashJoin {
         ArrayList<Record> rightRecords = new ArrayList<>();
 
         // TODO(proj3_part1): populate leftRecords and rightRecords such that NHJ breaks but not GHJ
+        for (int i = 0; i < 1000 * 4 * 5; i ++) {
+            Record r = createRecord(i);
+            leftRecords.add(r);
+            rightRecords.add(r);
+        }
 
         return new Pair<>(leftRecords, rightRecords);
     }
@@ -319,6 +390,11 @@ public class GraceHashJoin {
         ArrayList<Record> rightRecords = new ArrayList<>();
 
         // TODO(proj3_part1): populate leftRecords and rightRecords such that GHJ breaks
+        for (int i = 0; i < 1000 * 4 * 5; i ++) {
+            Record r = createRecord(1);
+            leftRecords.add(r);
+            rightRecords.add(r);
+        }
 
         return new Pair<>(leftRecords, rightRecords);
     }

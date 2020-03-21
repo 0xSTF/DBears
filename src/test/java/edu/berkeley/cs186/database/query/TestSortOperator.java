@@ -179,6 +179,8 @@ public class TestSortOperator {
             SortOperator s = new SortOperator(transaction.getTransactionContext(), "table",
                                               new SortRecordComparator(1));
             checkIOs(0);
+            System.out.println(numIOs);
+
             SortOperator.Run r1 = s.createRun();
             SortOperator.Run r2 = s.createRun();
             checkIOs(2 * NEW_TABLE_IOS);
@@ -199,6 +201,8 @@ public class TestSortOperator {
 
             startCountIOs();
             SortOperator.Run mergedSortedRuns = s.mergeSortedRuns(runs);
+
+            System.out.println(numIOs);
             checkIOs((2 * (2 + FIRST_ACCESS_IOS)) + (3 + NEW_TABLE_IOS));
 
             Iterator<Record> iter = mergedSortedRuns.iterator();
@@ -207,6 +211,7 @@ public class TestSortOperator {
                 assertEquals("mismatch at record " + i, records.get(i), iter.next());
                 i++;
             }
+
             assertFalse("too many records", iter.hasNext());
             assertEquals("too few records", 400 * 3, i);
             checkIOs(0);

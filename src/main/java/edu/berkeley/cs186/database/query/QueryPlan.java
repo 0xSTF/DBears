@@ -34,7 +34,7 @@ public class QueryPlan {
     /**
      * Creates a new QueryPlan within transaction. The base table is startTableName.
      *
-     * @param transaction the transaction containing this query
+     * @param transaction    the transaction containing this query
      * @param startTableName the source table for this query
      */
     public QueryPlan(TransactionContext transaction, String startTableName) {
@@ -45,7 +45,7 @@ public class QueryPlan {
      * Creates a new QueryPlan within transaction. The base table is startTableName,
      * aliased to aliasTableName.
      *
-     * @param transaction the transaction containing this query
+     * @param transaction    the transaction containing this query
      * @param startTableName the source table for this query
      * @param aliasTableName the alias for the source table
      */
@@ -103,9 +103,9 @@ public class QueryPlan {
      * Add a select operator. Only returns columns in which the column fulfills the predicate relative
      * to value.
      *
-     * @param column the column to specify the predicate on
+     * @param column     the column to specify the predicate on
      * @param comparison the comparator
-     * @param value the value to compare against
+     * @param value      the value to compare against
      */
     public void select(String column, PredicateOperator comparison,
                        DataBox value) {
@@ -152,8 +152,8 @@ public class QueryPlan {
      * Join the leftColumnName column of the existing queryplan against the rightColumnName column
      * of tableName.
      *
-     * @param tableName the table to join against
-     * @param leftColumnName the join column in the existing QueryPlan
+     * @param tableName       the table to join against
+     * @param leftColumnName  the join column in the existing QueryPlan
      * @param rightColumnName the join column in tableName
      */
     public void join(String tableName, String leftColumnName, String rightColumnName) {
@@ -164,9 +164,9 @@ public class QueryPlan {
      * Join the leftColumnName column of the existing queryplan against the rightColumnName column
      * of tableName, aliased as aliasTableName.
      *
-     * @param tableName the table to join against
-     * @param aliasTableName alias of table to join against
-     * @param leftColumnName the join column in the existing QueryPlan
+     * @param tableName       the table to join against
+     * @param aliasTableName  alias of table to join against
+     * @param leftColumnName  the join column in the existing QueryPlan
      * @param rightColumnName the join column in tableName
      */
     public void join(String tableName, String aliasTableName, String leftColumnName,
@@ -182,12 +182,12 @@ public class QueryPlan {
     }
 
     //Returns a 2-array of table name, column name
-    private String [] getJoinLeftColumnNameByIndex(int i) {
+    private String[] getJoinLeftColumnNameByIndex(int i) {
         return this.joinLeftColumnNames.get(i).split("\\.");
     }
 
     //Returns a 2-array of table name, column name
-    private String [] getJoinRightColumnNameByIndex(int i) {
+    private String[] getJoinRightColumnNameByIndex(int i) {
         return this.joinRightColumnNames.get(i).split("\\.");
     }
 
@@ -334,12 +334,28 @@ public class QueryPlan {
         // TODO(proj3_part2): implement
 
         // 1. Find the cost of a sequential scan of the table
+        minOp = new SequentialScanOperator(this.transaction, table);
+        int seqCost = minOp.estimateIOCost();
 
         // 2. For each eligible index column, find the cost of an index scan of the
         // table and retain the lowest cost operator
+        int minCost = seqCost;
+        List<Integer> indices = getEligibleIndexColumns(table);
+        Integer index = this.selectColumnNames.size();
+        QueryOperator indexOperator;
+        for (Integer i : indices) {
+            indexOperator = new IndexScanOperator(this.transaction, table,
+                    this.selectColumnNames.get(i), this.selectOperators.get(i), this.selectDataBoxes.get(i));
+            if (indexOperator.estimateIOCost() < minCost) {
+                minCost = indexOperator.estimateIOCost();
+                minOp = indexOperator;
+                index = i;
+            }
+        }
 
         // 3. Push down SELECT predicates that apply to this table and that were not
         // used for an index scan
+        minOp = addEligibleSelections(minOp, index);
 
         return minOp;
     }
@@ -484,8 +500,8 @@ public class QueryPlan {
             SequentialScanOperator scanOperator = new SequentialScanOperator(this.transaction, joinTable);
 
             this.finalOperator = new SNLJOperator(finalOperator, scanOperator,
-                                                  this.joinLeftColumnNames.get(index), this.joinRightColumnNames.get(index),
-                                                  this.transaction);
+                    this.joinLeftColumnNames.get(index), this.joinRightColumnNames.get(index),
+                    this.transaction);
 
             index++;
         }
@@ -499,7 +515,7 @@ public class QueryPlan {
             DataBox value = this.selectDataBoxes.get(index);
 
             this.finalOperator = new SelectOperator(this.finalOperator, selectColumn,
-                                                    operator, value);
+                    operator, value);
 
             index++;
         }
@@ -508,7 +524,7 @@ public class QueryPlan {
     private void addGroupBy() {
         if (this.groupByColumn != null) {
             if (this.projectColumns.size() > 2 || (this.projectColumns.size() == 1 &&
-                                                   !this.projectColumns.get(0).equals(this.groupByColumn))) {
+                    !this.projectColumns.get(0).equals(this.groupByColumn))) {
                 throw new QueryPlanException("Can only project columns specified in the GROUP BY clause.");
             }
 

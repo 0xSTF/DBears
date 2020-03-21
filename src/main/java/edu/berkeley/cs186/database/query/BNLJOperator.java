@@ -36,17 +36,17 @@ class BNLJOperator extends JoinOperator {
         int numLeftPages = getLeftSource().getStats().getNumPages();
         int numRightPages = getRightSource().getStats().getNumPages();
         return ((int) Math.ceil((double) numLeftPages / (double) usableBuffers)) * numRightPages +
-               numLeftPages;
+                numLeftPages;
     }
 
     /**
      * BNLJ: Block Nested Loop Join
-     *  See lecture slides.
-     *
+     * See lecture slides.
+     * <p>
      * An implementation of Iterator that provides an iterator interface for this operator.
-     *
+     * <p>
      * Word of advice: try to decompose the problem into distinguishable sub-problems.
-     *    This means you'll probably want to add more methods than those given.
+     * This means you'll probably want to add more methods than those given.
      */
     private class BNLJIterator extends JoinIterator {
         // Iterator over pages of the left relation
@@ -69,6 +69,7 @@ class BNLJOperator extends JoinOperator {
             fetchNextLeftBlock();
 
             this.rightIterator = BNLJOperator.this.getPageIterator(this.getRightTableName());
+            // this will always be one
             this.rightIterator.markNext();
             fetchNextRightPage();
 
@@ -83,24 +84,50 @@ class BNLJOperator extends JoinOperator {
          * Fetch the next non-empty block of B - 2 pages from the left relation. leftRecordIterator
          * should be set to a record iterator over the next B - 2 pages of the left relation that
          * have a record in them, and leftRecord should be set to the first record in this block.
-         *
+         * <p>
          * If there are no more pages in the left relation with records, both leftRecordIterator
          * and leftRecord should be set to null.
          */
         private void fetchNextLeftBlock() {
             // TODO(proj3_part1): implement
+            if (this.leftIterator.hasNext()) {
+                this.leftRecordIterator = getBlockIterator(getLeftTableName(), this.leftIterator, numBuffers - 2);
+                // this will mark the first record, to be reset
+                this.leftRecord = leftRecordIterator.next();
+                this.leftRecordIterator.markPrev();
+                // leftRecordIterator already at 1th, leftRecord is still as 0th
+            } else {
+                this.leftRecordIterator = null;
+                this.leftRecord = null;
+            }
         }
 
         /**
          * Fetch the next non-empty page from the right relation. rightRecordIterator
          * should be set to a record iterator over the next page of the right relation that
          * has a record in it.
-         *
+         * <p>
          * If there are no more pages in the left relation with records, rightRecordIterator
          * should be set to null.
          */
         private void fetchNextRightPage() {
             // TODO(proj3_part1): implement
+            // how to check non-empty page? Handled by right/Iterator
+
+            if (leftRecordIterator == null) {
+                this.rightRecordIterator = null;
+            } else{
+                if (this.rightIterator.hasNext()) {
+                    this.rightRecordIterator = BNLJOperator.this.getBlockIterator(getRightTableName(), this.rightIterator, 1);
+                    this.rightRecordIterator.markNext();
+                } else {
+                    this.rightIterator.reset();
+                    this.rightIterator.markNext();
+                    this.rightRecordIterator = BNLJOperator.this.getBlockIterator(getRightTableName(), this.rightIterator, 1);
+                    this.rightRecordIterator.markNext();
+                }
+            }
+
         }
 
         /**
@@ -110,13 +137,71 @@ class BNLJOperator extends JoinOperator {
          * @throws NoSuchElementException if there are no more Records to yield
          */
         private void fetchNextRecord() {
-            // TODO(proj3_part1): implement
+            /**
+
+        while ():
+            1. LRI & RRI:
+                RRI.next()
+                compare               //compare first, then advance
+
+            2. LRI & !RRI:
+                RRI.reset()
+                RRI.markN_next()
+                LRI.next()            // the act of compare is executed in case 1
+
+            3. !LRI & RI & (!RRI):     // in this case RRI will always be false, so no need to check.
+                                        Instead, check if there's a new right page to bring in
+                fetchNextRightPage()  // the page iterator will be reset properly below abstraction
+                LRI.reset()
+                LRI.mark_next()
+                LRI.next()
+
+             4. (!LRI &) !RI & LI      // !LRI has to be true at this point
+                fetchNextLeftBlock()  // if no more new blocks, LR&LRI = null, in which case is just case 5
+                                      // LRI will be set to the 2nd record immediately
+
+
+            5. Otherwise aka. (!LRI &) !RI & !LI : Done
+                throw new NoSuchElementException;
+             */
+            this.nextRecord = null;
+            while (!hasNext()) {
+                if (leftRecord != null  && rightRecordIterator.hasNext()) {
+
+                    Record rightRecord = rightRecordIterator.next();
+
+                    DataBox leftJoinValue = this.leftRecord.getValues().get(getLeftColumnIndex());
+                    DataBox rightJoinValue = rightRecord.getValues().get(getRightColumnIndex());
+
+                    if (leftJoinValue.equals(rightJoinValue)) {
+                        this.nextRecord = joinRecords(this.leftRecord, rightRecord);
+                    }
+
+
+                } else if (leftRecordIterator.hasNext() && !rightRecordIterator.hasNext()) {
+                    rightRecordIterator.reset();
+                    //rightRecordIterator.markNext();
+                    this.leftRecord = leftRecordIterator.next();
+                } else if (!leftRecordIterator.hasNext() && rightIterator.hasNext()) {
+                    fetchNextRightPage();
+                    leftRecordIterator.reset();
+                    leftRecordIterator.markNext();
+                    this.leftRecord = leftRecordIterator.next();
+                } else if (!rightIterator.hasNext() && leftIterator.hasNext()){
+                    fetchNextLeftBlock();
+                    fetchNextRightPage();
+                } else {
+                    throw new NoSuchElementException();
+                }
+            }
+            return;
         }
 
         /**
          * Helper method to create a joined record from a record of the left relation
          * and a record of the right relation.
-         * @param leftRecord Record from the left relation
+         *
+         * @param leftRecord  Record from the left relation
          * @param rightRecord Record from the right relation
          * @return joined record
          */
