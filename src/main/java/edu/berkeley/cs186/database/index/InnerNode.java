@@ -52,7 +52,7 @@ class InnerNode extends BPlusNode {
     InnerNode(BPlusTreeMetadata metadata, BufferManager bufferManager, List<DataBox> keys,
               List<Long> children, LockContext treeContext) {
         this(metadata, bufferManager, bufferManager.fetchNewPage(treeContext, metadata.getPartNum(), false),
-             keys, children, treeContext);
+                keys, children, treeContext);
     }
 
     /**
@@ -79,7 +79,8 @@ class InnerNode extends BPlusNode {
     @Override
     public LeafNode get(DataBox key) {
         // TODO(proj2): implement
-        return getChild(numLessThanEqual(key, this.getKeys())).get(key);
+
+        return null;
     }
 
     // See BPlusNode.getLeftmostLeaf.
@@ -87,103 +88,32 @@ class InnerNode extends BPlusNode {
     public LeafNode getLeftmostLeaf() {
         assert(children.size() > 0);
         // TODO(proj2): implement
-        return getChild(0).getLeftmostLeaf();
+
+        return null;
     }
 
     // See BPlusNode.put.
     @Override
     public Optional<Pair<DataBox, Long>> put(DataBox key, RecordId rid) {
         // TODO(proj2): implement
-        // find which children to traverse, call c = child.put()
-        // if c is Optional.empty(), return c (child doesn't split)
-        List<DataBox> k = getKeys();
-        int d =  metadata.getOrder();
-        assert(k.size() <= 2 * d);
-        int i = InnerNode.numLessThanEqual(key, keys);
-        BPlusNode child = getChild(i);
-        Optional<Pair<DataBox, Long>> result;
-        //this is the return value of last value of the tree
-        //not Optional.empty() iff child splits
-        Optional<Pair<DataBox, Long>> infant = child.put(key, rid);
 
-        result = Optional.empty();
-        //if child doesn't split
-        if (!infant.isPresent()) {
-            sync();
-        } else { //child splits
-            Pair<DataBox, Long> p = infant.get();
-            children.add(i + 1, p.getSecond());
-            this.keys.add(i, p.getFirst());
-
-            // if the curr innerNode(before copyUp or pushUp) isn't full, append then sync
-            if (keys.size() <= 2d) {
-                sync();
-            } else { // if curr innerNode splits after copyUp or pushUp
-                assert(keys.size() <= 2d + 1);
-                //the splitKey is the key being pushed(or copied up in LeafNode)
-                DataBox splitKey = k.get(d);
-
-                List<DataBox> newKeys = keys.subList(d + 1, this.keys.size());
-                List<Long> newChildren = children.subList(d + 1, this.children.size());
-                this.keys = keys.subList(0, d);
-                this.children = children.subList(0, d + 1);
-                sync();
-
-                result = Optional.of(new Pair<>(splitKey,
-                                    new InnerNode(metadata, bufferManager, newKeys, newChildren, treeContext)
-                                    .getPage().getPageNum()));
-            }
-        }
-
-
-        return result;
+        return Optional.empty();
     }
 
     // See BPlusNode.bulkLoad.
     @Override
     public Optional<Pair<DataBox, Long>> bulkLoad(Iterator<Pair<DataBox, RecordId>> data,
-            float fillFactor) {
+                                                  float fillFactor) {
         // TODO(proj2): implement
-        int d = this.metadata.getOrder();
-        Optional<Pair<DataBox, Long>> result =  Optional.empty();
-        Optional<Pair<DataBox, Long>> infant;
 
-        while (data.hasNext()) {
-            // loads the Leafpage fromByte on PageNum = <the last appended child>
-            // then call bulkload on it (either a LeafNode or a InnerNode), in order to "
-            // try to bulk load the rightmost child until either the inner node is full
-            // or there is no more data." --BPlusNode CoreAPI
-            BPlusNode rightMostChild = this.getChild(this.keys.size());
-            infant = LeafNode.fromBytes(metadata, bufferManager, treeContext,
-                    rightMostChild.getPage().getPageNum()).bulkLoad(data, fillFactor);
-
-            // If !Overflow
-            if (this.keys.size() < 2 * d) {
-                // in this iteration, child splits, after being bulkLoaded
-                if (infant.isPresent()) {
-                    this.keys.add(infant.get().getFirst());
-                    this.children.add(infant.get().getSecond());
-                }
-            } else { // Overflow
-                BPlusNode newInnerNode = new InnerNode(metadata, bufferManager,
-                        this.getKeys().subList(d + 1, keys.size()), this.getChildren().subList(d + 1, children.size()),
-                        treeContext);
-                this.keys = this.keys.subList(0, d);
-                this.children = this.children.subList(0, d + 1);
-                result = Optional.of(new Pair<>(keys.get(d), newInnerNode.getPage().getPageNum()));
-                sync();
-                return result;
-            }
-        }
-        sync();
-        return result;
+        return Optional.empty();
     }
 
     // See BPlusNode.remove.
     @Override
     public void remove(DataBox key) {
         // TODO(proj2): implement
-        this.getChild(numLessThanEqual(key, keys)).remove(key);
+
         return;
     }
 
@@ -354,7 +284,7 @@ class InnerNode extends BPlusNode {
             long childPageNum = child.getPage().getPageNum();
             lines.add(child.toDot());
             lines.add(String.format("  \"node%d\":f%d -> \"node%d\";",
-                                    pageNum, i, childPageNum));
+                    pageNum, i, childPageNum));
         }
 
         return String.join("\n", lines);
@@ -407,7 +337,6 @@ class InnerNode extends BPlusNode {
      */
     public static InnerNode fromBytes(BPlusTreeMetadata metadata,
                                       BufferManager bufferManager, LockContext treeContext, long pageNum) {
-        //System.out.println(pageNum);
         Page page = bufferManager.fetchPage(treeContext, pageNum, false);
         Buffer buf = page.getBuffer();
 
@@ -436,8 +365,8 @@ class InnerNode extends BPlusNode {
         }
         InnerNode n = (InnerNode) o;
         return page.getPageNum() == n.page.getPageNum() &&
-               keys.equals(n.keys) &&
-               children.equals(n.children);
+                keys.equals(n.keys) &&
+                children.equals(n.children);
     }
 
     @Override
