@@ -95,8 +95,22 @@ public class LockContext {
     public void acquire(TransactionContext transaction, LockType lockType)
     throws InvalidLockException, DuplicateLockRequestException {
         // TODO(proj4_part2): implement
-
-        return;
+        if (readonly) {
+            throw new UnsupportedOperationException("LockContext is read only");
+        }
+        LockContext parentContext = this.parentContext();
+        if(!parentContext.equals(null) &&
+                !LockType.canBeParentLock(parentContext.getExplicitLockType(transaction), lockType)) {
+            throw new InvalidLockException("requested LockType is incompatible with parent LockType");
+        }
+        LockType curr_LockType = getExplicitLockType(transaction);
+        if (!LockType.compatible(curr_LockType, lockType)) {
+            throw new InvalidLockException("requested LockType is incompatible with existing LockType");
+        }
+        if (curr_LockType.equals(lockType)) {
+            throw new DuplicateLockRequestException("requested LockType already held by transaction");
+        }
+        this.lockman.acquire(transaction, name, lockType);
     }
 
     /**
