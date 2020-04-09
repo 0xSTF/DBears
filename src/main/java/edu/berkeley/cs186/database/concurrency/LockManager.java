@@ -247,7 +247,7 @@ public class LockManager {
                 entry.grantOrUpdateLock(newlock);
                 for (ResourceName n : releaseLocks) {
                     if (n == name) {
-                        break;
+                        continue;
                     }
                     release(transaction, n);
                 }
