@@ -23,7 +23,6 @@ public class LockUtil {
      * If the current transaction is null (i.e. there is no current transaction), this method should do nothing.
      */
     public static void ensureSufficientLockHeld(LockContext lockContext, LockType lockType) {
-        // TODO(proj4_part2): implement
 
         TransactionContext transaction = TransactionContext.getTransaction(); // current transaction
 
@@ -39,7 +38,6 @@ public class LockUtil {
         actOfAcquisition(lockContext, lockType, explicitLockType, transaction);
     }
 
-    // TODO(proj4_part2): add helper methods as you see fit
     private static void checkAncestorLockTypes(LockContext lockContext, LockType lockType,
                                                TransactionContext transaction) {
         Stack<ResourceName> ancestorInOrder = new Stack();

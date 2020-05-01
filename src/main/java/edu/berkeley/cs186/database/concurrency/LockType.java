@@ -20,7 +20,6 @@ public enum LockType {
         if (a == null || b == null) {
             throw new NullPointerException("null lock type");
         }
-        // TODO(proj4_part1): implement
         // use switch method to implement the chart
         switch (a) {
             case NL:
@@ -74,7 +73,6 @@ public enum LockType {
         if (parentLockType == null || childLockType == null) {
             throw new NullPointerException("null lock type");
         }
-        // TODO(proj4_part1): implement
         switch (childLockType) {
             case S:
             case IS:
@@ -101,7 +99,6 @@ public enum LockType {
         if (required == null || substitute == null) {
             throw new NullPointerException("null lock type");
         }
-        // TODO(proj4_part1): implement
         /*
         NL(R) Permissions: {} (empty set)
         X(R) Permissions:  {Read, Write, Read descendants, Write descendants}
